@@ -1,0 +1,11 @@
+# IDE directories
+/.idea
+
+# Build directories
+/target
+
+# Other directories
+/.local_tools
+
+# Build files
+kernel8.img

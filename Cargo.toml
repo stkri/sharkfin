@@ -1,0 +1,14 @@
+[workspace]
+resolver = "3"
+
+members = [
+    "sharkfin_kernel",
+]
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+opt-level = "z"
+lto = true
