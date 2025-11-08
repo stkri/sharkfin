@@ -1,41 +1,43 @@
+use crate::common_functions::default_pull_after_power_up;
 use crate::common_functions::get_high_write_pointer;
 use crate::common_functions::get_low_write_pointer;
 use crate::common_functions::get_read_pointer;
 use crate::common_functions::get_selection_pointer;
 use crate::common_functions::get_set_pull_clock_pointer;
 use crate::gpio_addresses::GPIO_PIN_SET_PULL;
-pub use crate::gpio_mode_types::GPIOError;
-pub use crate::gpio_mode_types::GPIOOut;
-pub use crate::gpio_mode_types::GPIOPull;
+pub use crate::gpio_types::GPIOError;
+pub use crate::gpio_types::GPIOOut;
+pub use crate::gpio_types::GPIOPull;
+use crate::gpio_types::GPIOResult;
 pub use driver_traits::gpio_pin::ConfigurablePull;
 pub use driver_traits::gpio_pin::OutputPin;
 pub use driver_traits::gpio_pin::StatefulOutputPin;
-use kernel_utils::wait_cycles;
+use kernel_utils::nops::wait_cycles;
 
 impl OutputPin for GPIOOut {
     type Error = GPIOError;
-    unsafe fn set_low(&mut self) -> Result<(), Self::Error> {
+    fn set_low(&mut self) -> GPIOResult<()> {
         let (write_ptr, write_bit) = get_low_write_pointer(self.pin)?;
         let write_num: u32 = 0b1 << write_bit;
         // Safety:
         // We know that write_ptr is not null.
         unsafe { write_ptr.write_volatile(write_num) };
 
-        match unsafe { self.is_set_low() } {
+        match self.is_set_low() {
             Ok(true) => Ok(()),
             Ok(false) => Err(GPIOError::UnknownError),
             Err(e) => Err(e),
         }
     }
 
-    unsafe fn set_high(&mut self) -> Result<(), Self::Error> {
+    fn set_high(&mut self) -> GPIOResult<()> {
         let (write_ptr, write_bit) = get_high_write_pointer(self.pin)?;
         let write_num: u32 = 0b1 << write_bit;
         // Safety:
         // We know that write_ptr is not null.
         unsafe { write_ptr.write_volatile(write_num) };
 
-        match unsafe { self.is_set_high() } {
+        match self.is_set_high() {
             Ok(true) => Ok(()),
             Ok(false) => Err(GPIOError::UnknownError),
             Err(e) => Err(e),
@@ -47,7 +49,7 @@ impl ConfigurablePull for GPIOOut {
     type Error = GPIOError;
     type Pull = GPIOPull;
 
-    unsafe fn set_pull(&mut self, pull: Self::Pull) -> Result<(), Self::Error> {
+    fn set_pull(&mut self, pull: Self::Pull) -> GPIOResult<()> {
         let pull_mode_bits = match pull {
             GPIOPull::None => 0b00,
             GPIOPull::Down => 0b01,
@@ -73,11 +75,11 @@ impl ConfigurablePull for GPIOOut {
 }
 
 impl StatefulOutputPin for GPIOOut {
-    unsafe fn is_set_low(&self) -> Result<bool, Self::Error> {
-        Ok(!unsafe { self.is_set_high() }?)
+    fn is_set_low(&self) -> GPIOResult<bool> {
+        Ok(!self.is_set_high()?)
     }
 
-    unsafe fn is_set_high(&self) -> Result<bool, Self::Error> {
+    fn is_set_high(&self) -> GPIOResult<bool> {
         let (read_ptr, read_bit) = get_read_pointer(self.pin)?;
 
         // Safety:
@@ -90,17 +92,26 @@ impl StatefulOutputPin for GPIOOut {
         }
     }
 
-    unsafe fn toggle(&mut self) -> Result<(), Self::Error> {
-        match unsafe { self.is_set_low() } {
-            Ok(true) => unsafe { self.set_high() },
-            Ok(false) => unsafe { self.set_low() },
+    fn toggle(&mut self) -> GPIOResult<()> {
+        match self.is_set_low() {
+            Ok(true) => self.set_high(),
+            Ok(false) => self.set_low(),
             Err(e) => Err(e),
         }
     }
 }
 
 impl GPIOOut {
-    pub fn new(pin_num: u8) -> Result<Self, GPIOError> {
+    /// Create a new GPIO Output pin object
+    ///
+    /// # Errors
+    /// Fails if the pin is not valid.
+    ///
+    /// # Safety
+    /// Provides no guarantees that the pin isn't used elsewhere.
+    /// Because of how it is written, having two variables share a pin
+    /// may easily cause Undefined Behaviour.
+    pub unsafe fn new(pin_num: u8) -> GPIOResult<Self> {
         let (sel_ptr, mode_bit) = get_selection_pointer(pin_num)?;
 
         // Safety:
@@ -110,10 +121,8 @@ impl GPIOOut {
         current_mode |= 0b001 << mode_bit;
 
         unsafe { sel_ptr.write_volatile(current_mode) };
+        let pull = unsafe { default_pull_after_power_up(pin_num)? };
 
-        Ok(Self {
-            pin: pin_num,
-            pull: GPIOPull::None,
-        })
+        Ok(Self { pin: pin_num, pull })
     }
 }

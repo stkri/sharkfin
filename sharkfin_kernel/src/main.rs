@@ -5,9 +5,9 @@
 //! You probably want to create an external module.
 use core::arch::global_asm;
 use core::panic::PanicInfo;
-use gpio::gpio_mode_types::GPIOOut;
-use gpio::gpio_out_impls::StatefulOutputPin;
-use kernel_utils::wait_cycles;
+use gpio::gpio_types::GPIOOut;
+use gpio::impls::gpio_out::StatefulOutputPin;
+use kernel_utils::nops::wait_cycles;
 
 #[cfg(target_arch = "aarch64")]
 global_asm!(include_str!("asm/aarch64/boot.aarch64.s"));
@@ -15,14 +15,12 @@ global_asm!(include_str!("asm/aarch64/boot.aarch64.s"));
 /// **Do not edit unless you know what you are doing.**
 #[unsafe(no_mangle)]
 pub extern "C" fn kernel_main() -> ! {
-    let mut led = match GPIOOut::new(29) {
+    let mut led = match unsafe { GPIOOut::new(29) } {
         Ok(pin) => pin,
         Err(_) => panic!("GPIO initialization failed"),
     };
     loop {
-        unsafe {
-            let _ = led.toggle();
-        }
+        let _ = led.toggle();
         wait_cycles(5_000_000);
     }
 }

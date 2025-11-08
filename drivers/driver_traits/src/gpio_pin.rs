@@ -3,12 +3,13 @@
 //! **If you are using a driver, avoid using these functions.**\
 //! These functions are intended to be used inside drivers that access the GPIO.
 //! These drivers should have way better functions for your purposes.
-//! While some of these functions aren't unsafe, **if you do not know what you are doing,**
+//! This is the bare minimum.
+//! While these functions aren't unsafe, **if you do not know what you are doing,**
 //! **you will end up with garbage data.**
 /// Abstraction over GPIO pin which can accept input.
 ///
 /// **If you are using a driver, avoid using these functions.**\
-/// Check the driver for convenient read functions.
+/// Check the driver for convenient GPIO interfaces.
 pub trait InputPin {
     type Error;
     /// Checks if pin voltage is near ground.
@@ -27,7 +28,7 @@ pub trait InputPin {
 /// Abstraction over GPIO pin which can accept output.
 ///
 /// **If you are using a driver, avoid using these functions.**\
-/// Check the driver for safe write functions.
+/// Check the driver for convenient GPIO interfaces.
 pub trait OutputPin {
     type Error;
     /// Sets pin voltage to Ground
@@ -36,26 +37,26 @@ pub trait OutputPin {
     /// Fails if the hardware operation fails.
     /// Check driver documentation for more information.
     ///
-    /// # Safety
+    /// # Implementation Safety
     /// Hardware write operations are inherently unsafe.
     /// Make sure hardware addresses are valid, and the pin is properly set up.
-    unsafe fn set_low(&mut self) -> Result<(), Self::Error>;
+    fn set_low(&mut self) -> Result<(), Self::Error>;
     /// Sets pin voltage to VCC
     ///
     /// # Errors
     /// Fails if the hardware operation fails.
     /// Check driver documentation for more information.
     ///
-    /// # Safety
+    /// # Implementation Safety
     /// Hardware write operations are inherently unsafe.
     /// Make sure hardware addresses are valid, and the pin is properly set up.
-    unsafe fn set_high(&mut self) -> Result<(), Self::Error>;
+    fn set_high(&mut self) -> Result<(), Self::Error>;
 }
 /// Extension to OutputPin abstraction.
 /// Guarantees a possibility to check the set pin state.
 ///
 /// **If you are using a driver, avoid using these functions.**\
-/// Check the driver for safe write and read functions.
+/// Check the driver for convenient GPIO interfaces.
 pub trait StatefulOutputPin: OutputPin {
     /// Check if the pin voltage is set to ground.
     ///
@@ -63,30 +64,30 @@ pub trait StatefulOutputPin: OutputPin {
     /// Fails if the hardware operation fails.
     /// Check driver documentation for more information.
     ///
-    /// # Safety
+    /// # Implementation Safety
     /// Hardware operations are inherently unsafe.
-    /// Improper use of GPIO may lead to garbage data.
-    unsafe fn is_set_low(&self) -> Result<bool, Self::Error>;
+    /// Make sure hardware addresses are valid, and the pin is properly set up.
+    fn is_set_low(&self) -> Result<bool, Self::Error>;
     /// Check if the pin voltage is set to VCC.
     ///
     /// # Errors
     /// Fails if the hardware operation fails.
     /// Check driver documentation for more information.
     ///
-    /// # Safety
+    /// # Implementation Safety
     /// Hardware operations are inherently unsafe.
-    /// Improper use of GPIO may lead to garbage data.
-    unsafe fn is_set_high(&self) -> Result<bool, Self::Error>;
+    /// Make sure hardware addresses are valid, and the pin is properly set up.
+    fn is_set_high(&self) -> Result<bool, Self::Error>;
     /// Toggle pin voltage.
     ///
     /// # Errors
     /// Fails if the hardware operation fails.
     /// Check driver documentation for more information.
     ///
-    /// # Safety
+    /// # Implementation Safety
     /// Hardware write operations are inherently unsafe.
     /// Make sure hardware addresses are valid, and the pin is properly set-up.
-    unsafe fn toggle(&mut self) -> Result<(), Self::Error>;
+    fn toggle(&mut self) -> Result<(), Self::Error>;
 }
 
 /// Abstraction to add pull configuration to GPIO pin.
@@ -99,8 +100,8 @@ pub trait ConfigurablePull {
     /// Fails if the hardware operation fails.
     /// Check driver documentation for more information.
     ///
-    /// # Safety
+    /// # Implementation Safety
     /// Hardware operations are inherently unsafe.
     /// Make sure the hardware addresses are valid, and the timing is correct.
-    unsafe fn set_pull(&mut self, pull: Self::Pull) -> Result<(), Self::Error>;
+    fn set_pull(&mut self, pull: Self::Pull) -> Result<(), Self::Error>;
 }

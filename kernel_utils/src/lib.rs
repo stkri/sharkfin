@@ -1,9 +1,3 @@
 #![no_std]
-use core::hint::spin_loop;
-
-/// Tell the CPU to wait for the given amount of cycles.
-pub fn wait_cycles(cycles: usize) {
-    for _ in 0..cycles {
-        spin_loop();
-    }
-}
+//! A library crate which provides several different kernel utility functions.
+pub mod nops;
