@@ -6,7 +6,7 @@ pub enum GPIOError {
     WrongFunction,
     /// The pin has no pull and therefore can't produce defined results.
     NoPull,
-    /// The pin number exceeds 53.
+    /// The GPIO pin ID exceeds 53.
     NonExistentPin,
     /// The pin cannot be converted to the alternative mode, as it is reserved.
     ReservedPinFunction,
@@ -14,12 +14,16 @@ pub enum GPIOError {
     InternalPinFunction,
     /// The pin cannot be converted to the alternative mode, as it is not defined.
     UndefinedPinFunction,
+    /// An unknown error.
+    UnknownError,
     // TODO: Add more GPIO error cases.
 }
 
 /// Default pin state as configured by the pull resistors.
+#[derive(Default)]
 pub enum GPIOPull {
     /// There is no pull. Can't be used other than for Output.
+    #[default]
     None,
     /// The pin is set high per default.
     Up,
@@ -28,12 +32,14 @@ pub enum GPIOPull {
 }
 
 /// Type corresponding to input (`000`).
+#[derive(Default)]
 pub struct GPIOIn {
-    pub pin: u8,
-    pub pull: GPIOPull,
+    pin: u8,
+    pull: GPIOPull,
 }
 
 /// Type corresponding to output (`001`).
+#[derive(Default)]
 pub struct GPIOOut {
     pub pin: u8,
     pub pull: GPIOPull,

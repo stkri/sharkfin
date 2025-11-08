@@ -5,6 +5,7 @@ members = [
     "drivers/driver_traits",
     "drivers/gpio/*",
     "sharkfin_kernel",
+    "kernel_utils"
 ]
 
 [profile.dev]

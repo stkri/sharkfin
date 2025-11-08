@@ -7,6 +7,7 @@ name = "driver_gpio_bcm2837"
 version = "0.1.0"
 dependencies = [
  "driver_traits",
+ "kernel_utils",
 ]
 
 [[package]]
@@ -14,5 +15,13 @@ name = "driver_traits"
 version = "0.1.0"
 
 [[package]]
+name = "kernel_utils"
+version = "0.1.0"
+
+[[package]]
 name = "sharkfin_kernel"
 version = "0.1.0"
+dependencies = [
+ "driver_gpio_bcm2837",
+ "kernel_utils",
+]

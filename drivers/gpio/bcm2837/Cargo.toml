@@ -5,3 +5,4 @@ edition = "2024"
 
 [dependencies]
 driver_traits = { path = "../../driver_traits" }
+kernel_utils = { path = "../../../kernel_utils" }

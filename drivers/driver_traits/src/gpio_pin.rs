@@ -16,13 +16,13 @@ pub trait InputPin {
     /// # Errors
     /// Fails if the hardware operation fails.
     /// Check driver documentation for more information.
-    fn set_low(&self) -> Result<bool, Self::Error>;
+    fn is_low(&self) -> Result<bool, Self::Error>;
     /// Checks if pin voltage is near VCC.
     ///
     /// # Errors
     /// Fails if the hardware operation fails.
     /// Check driver documentation for more information.
-    fn set_high(&self) -> Result<bool, Self::Error>;
+    fn is_high(&self) -> Result<bool, Self::Error>;
 }
 /// Abstraction over GPIO pin which can accept output.
 ///
@@ -58,12 +58,28 @@ pub trait OutputPin {
 /// Check the driver for safe write and read functions.
 pub trait StatefulOutputPin: OutputPin {
     /// Check if the pin voltage is set to ground.
-    fn is_set_low(&self) -> bool;
+    ///
+    /// # Errors
+    /// Fails if the hardware operation fails.
+    /// Check driver documentation for more information.
+    ///
+    /// # Safety
+    /// Hardware operations are inherently unsafe.
+    /// Improper use of GPIO may lead to garbage data.
+    unsafe fn is_set_low(&self) -> Result<bool, Self::Error>;
     /// Check if the pin voltage is set to VCC.
-    fn is_set_high(&self) -> bool;
+    ///
+    /// # Errors
+    /// Fails if the hardware operation fails.
+    /// Check driver documentation for more information.
+    ///
+    /// # Safety
+    /// Hardware operations are inherently unsafe.
+    /// Improper use of GPIO may lead to garbage data.
+    unsafe fn is_set_high(&self) -> Result<bool, Self::Error>;
     /// Toggle pin voltage.
     ///
-    /// # Error
+    /// # Errors
     /// Fails if the hardware operation fails.
     /// Check driver documentation for more information.
     ///
@@ -79,7 +95,7 @@ pub trait ConfigurablePull {
     type Pull;
     /// Set the pin pull to chosen option.
     ///
-    /// # Error
+    /// # Errors
     /// Fails if the hardware operation fails.
     /// Check driver documentation for more information.
     ///
