@@ -6,12 +6,13 @@ use crate::gpio_addresses::*;
 use crate::gpio_types::GPIOError;
 use crate::gpio_types::GPIOPull;
 use crate::gpio_types::GPIOResult;
+use core::ptr::NonNull;
 
 /// Function which returns he correct `GPFSEL` pointer for the given pin ID.
 ///
 /// # Errors:
 /// Returns an error if `pin` is higher than 53.
-pub fn get_selection_pointer(pin: u8) -> GPIOResult<(*mut u32, u8)> {
+pub fn get_selection_pointer(pin: u8) -> GPIOResult<(NonNull<u32>, u8)> {
     match pin {
         0..=9 => Ok((GPIO_FUNCTION_SELECT_0, pin * 3)),
         10..=19 => Ok((GPIO_FUNCTION_SELECT_1, (pin - 10) * 3)),
@@ -27,7 +28,7 @@ pub fn get_selection_pointer(pin: u8) -> GPIOResult<(*mut u32, u8)> {
 ///
 /// # Errors:
 /// Returns an error if `pin` is higher than 53.
-pub fn get_low_write_pointer(pin: u8) -> GPIOResult<(*mut u32, u8)> {
+pub fn get_low_write_pointer(pin: u8) -> GPIOResult<(NonNull<u32>, u8)> {
     match pin {
         0..=31 => Ok((GPIO_SET_LOW_0, pin)),
         32..=53 => Ok((GPIO_SET_LOW_1, pin - 32)),
@@ -39,7 +40,7 @@ pub fn get_low_write_pointer(pin: u8) -> GPIOResult<(*mut u32, u8)> {
 ///
 /// # Errors:
 /// Returns an error if `pin` is higher than 53.
-pub fn get_high_write_pointer(pin: u8) -> GPIOResult<(*mut u32, u8)> {
+pub fn get_high_write_pointer(pin: u8) -> GPIOResult<(NonNull<u32>, u8)> {
     match pin {
         0..=31 => Ok((GPIO_SET_HIGH_0, pin)),
         32..=53 => Ok((GPIO_SET_HIGH_1, pin - 32)),
@@ -51,7 +52,7 @@ pub fn get_high_write_pointer(pin: u8) -> GPIOResult<(*mut u32, u8)> {
 ///
 /// # Errors:
 /// Returns an error if `pin` is higher than 53.
-pub fn get_read_pointer(pin: u8) -> GPIOResult<(*mut u32, u8)> {
+pub fn get_read_pointer(pin: u8) -> GPIOResult<(NonNull<u32>, u8)> {
     match pin {
         0..=31 => Ok((GPIO_GET_LEVEL_0, pin)),
         32..=53 => Ok((GPIO_GET_LEVEL_1, pin - 32)),
@@ -63,7 +64,7 @@ pub fn get_read_pointer(pin: u8) -> GPIOResult<(*mut u32, u8)> {
 ///
 /// # Errors:
 /// Returns an error if `pin` is higher than 53.
-pub fn get_set_pull_clock_pointer(pin: u8) -> GPIOResult<(*mut u32, u8)> {
+pub fn get_set_pull_clock_pointer(pin: u8) -> GPIOResult<(NonNull<u32>, u8)> {
     match pin {
         0..=31 => Ok((GPIO_PIN_SET_PULL_CLOCK_0, pin)),
         32..=53 => Ok((GPIO_PIN_SET_PULL_CLOCK_1, pin - 32)),

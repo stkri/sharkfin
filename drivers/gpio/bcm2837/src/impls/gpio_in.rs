@@ -1,49 +1,38 @@
-//! These are the implementations for GPIOOut
-use crate::common_functions::default_pull_after_power_up;
-use crate::common_functions::get_high_write_pointer;
-use crate::common_functions::get_low_write_pointer;
+//! These are the implementations for GPIOIn
+
+use crate::common_functions::{default_pull_after_power_up, get_set_pull_clock_pointer};
 use crate::common_functions::get_read_pointer;
 use crate::common_functions::get_selection_pointer;
-use crate::common_functions::get_set_pull_clock_pointer;
-use crate::gpio_addresses::GPIO_PIN_SET_PULL;
 pub use crate::gpio_types::*;
+pub use driver_traits::gpio_pin::InputPin;
 pub use driver_traits::gpio_pin::ConfigurablePull;
-pub use driver_traits::gpio_pin::OutputPin;
-pub use driver_traits::gpio_pin::StatefulOutputPin;
 use kernel_utils::nops::wait_cycles;
+use crate::gpio_addresses::GPIO_PIN_SET_PULL;
 
-impl OutputPin for GPIOOut {
+impl InputPin for GPIOIn {
     type Error = GPIOError;
-    fn set_low(&mut self) -> GPIOResult<()> {
-        let (write_ptr, write_bit) = get_low_write_pointer(self.pin)?;
-        let write_num: u32 = 0b1 << write_bit;
-        // Safety:
-        // We know that write_ptr is not null.
-        unsafe { write_ptr.write_volatile(write_num) };
 
-        match self.is_set_low() {
-            Ok(true) => Ok(()),
-            Ok(false) => Err(GPIOError::UnknownWriteError),
-            Err(e) => Err(e),
-        }
+    fn is_low(&self) -> Result<bool, Self::Error> {
+        Ok(!self.is_high()?)
     }
+    fn is_high(&self) -> Result<bool, Self::Error> {
+        if self.pull == GPIOPull::None {
+            return Err(GPIOError::NoPull);
+        }
+        let (read_ptr, read_bit) = get_read_pointer(self.pin)?;
 
-    fn set_high(&mut self) -> GPIOResult<()> {
-        let (write_ptr, write_bit) = get_high_write_pointer(self.pin)?;
-        let write_num: u32 = 0b1 << write_bit;
         // Safety:
-        // We know that write_ptr is not null.
-        unsafe { write_ptr.write_volatile(write_num) };
-
-        match self.is_set_high() {
-            Ok(true) => Ok(()),
-            Ok(false) => Err(GPIOError::UnknownWriteError),
-            Err(e) => Err(e),
+        // We know that read_ptr is not null
+        let current_state = unsafe { read_ptr.read_volatile() };
+        match (current_state >> read_bit) & 1 {
+            0b0 => Ok(false),
+            0b1 => Ok(true),
+            _ => Err(GPIOError::UnknownReadError),
         }
     }
 }
 
-impl ConfigurablePull for GPIOOut {
+impl ConfigurablePull for GPIOIn {
     type Error = GPIOError;
     type Pull = GPIOPull;
 
@@ -74,53 +63,26 @@ impl ConfigurablePull for GPIOOut {
     }
 }
 
-impl StatefulOutputPin for GPIOOut {
-    fn is_set_low(&self) -> GPIOResult<bool> {
-        Ok(!self.is_set_high()?)
-    }
-
-    fn is_set_high(&self) -> GPIOResult<bool> {
-        let (read_ptr, read_bit) = get_read_pointer(self.pin)?;
-
-        // Safety:
-        // We know that read_ptr is not null
-        let current_state = unsafe { read_ptr.read_volatile() };
-        match (current_state >> read_bit) & 1 {
-            0b0 => Ok(false),
-            0b1 => Ok(true),
-            _ => Err(GPIOError::UnknownReadError),
-        }
-    }
-
-    fn toggle(&mut self) -> GPIOResult<()> {
-        match self.is_set_low() {
-            Ok(true) => self.set_high(),
-            Ok(false) => self.set_low(),
-            Err(e) => Err(e),
-        }
-    }
-}
-
-impl TryFrom<GPIOIn> for GPIOOut {
+impl TryFrom<GPIOOut> for GPIOIn {
     type Error = GPIOError;
-    fn try_from(gpio_in: GPIOIn) -> GPIOResult<Self> {
-        let (sel_ptr, mode_bit) = get_selection_pointer(gpio_in.pin)?;
+    fn try_from(gpio_out: GPIOOut) -> GPIOResult<Self> {
+        let (sel_ptr, mode_bit) = get_selection_pointer(gpio_out.pin)?;
 
         // Safety:
         // We know that sel_ptr is not null.
         let mut current_mode = unsafe { sel_ptr.read_volatile() };
         current_mode &= !(0b111 << mode_bit);
-        current_mode |= 0b001 << mode_bit;
+        current_mode |= 0b000 << mode_bit;
 
         unsafe { sel_ptr.write_volatile(current_mode) };
         Ok(Self {
-            pin: gpio_in.pin,
-            pull: gpio_in.pull,
+            pin: gpio_out.pin,
+            pull: gpio_out.pull,
         })
     }
 }
 
-impl TryFrom<GPIOAlt0> for GPIOOut {
+impl TryFrom<GPIOAlt0> for GPIOIn {
     type Error = GPIOError;
     fn try_from(gpio_alt0: GPIOAlt0) -> GPIOResult<Self> {
         let (sel_ptr, mode_bit) = get_selection_pointer(gpio_alt0.pin)?;
@@ -129,7 +91,7 @@ impl TryFrom<GPIOAlt0> for GPIOOut {
         // We know that sel_ptr is not null.
         let mut current_mode = unsafe { sel_ptr.read_volatile() };
         current_mode &= !(0b111 << mode_bit);
-        current_mode |= 0b001 << mode_bit;
+        current_mode |= 0b000 << mode_bit;
 
         unsafe { sel_ptr.write_volatile(current_mode) };
         Ok(Self {
@@ -139,7 +101,7 @@ impl TryFrom<GPIOAlt0> for GPIOOut {
     }
 }
 
-impl TryFrom<GPIOAlt1> for GPIOOut {
+impl TryFrom<GPIOAlt1> for GPIOIn {
     type Error = GPIOError;
     fn try_from(gpio_alt1: GPIOAlt1) -> GPIOResult<Self> {
         let (sel_ptr, mode_bit) = get_selection_pointer(gpio_alt1.pin)?;
@@ -148,7 +110,7 @@ impl TryFrom<GPIOAlt1> for GPIOOut {
         // We know that sel_ptr is not null.
         let mut current_mode = unsafe { sel_ptr.read_volatile() };
         current_mode &= !(0b111 << mode_bit);
-        current_mode |= 0b001 << mode_bit;
+        current_mode |= 0b000 << mode_bit;
 
         unsafe { sel_ptr.write_volatile(current_mode) };
         Ok(Self {
@@ -158,7 +120,7 @@ impl TryFrom<GPIOAlt1> for GPIOOut {
     }
 }
 
-impl TryFrom<GPIOAlt2> for GPIOOut {
+impl TryFrom<GPIOAlt2> for GPIOIn {
     type Error = GPIOError;
     fn try_from(gpio_alt2: GPIOAlt2) -> GPIOResult<Self> {
         let (sel_ptr, mode_bit) = get_selection_pointer(gpio_alt2.pin)?;
@@ -167,7 +129,7 @@ impl TryFrom<GPIOAlt2> for GPIOOut {
         // We know that sel_ptr is not null.
         let mut current_mode = unsafe { sel_ptr.read_volatile() };
         current_mode &= !(0b111 << mode_bit);
-        current_mode |= 0b001 << mode_bit;
+        current_mode |= 0b000 << mode_bit;
 
         unsafe { sel_ptr.write_volatile(current_mode) };
         Ok(Self {
@@ -177,7 +139,7 @@ impl TryFrom<GPIOAlt2> for GPIOOut {
     }
 }
 
-impl TryFrom<GPIOAlt3> for GPIOOut {
+impl TryFrom<GPIOAlt3> for GPIOIn {
     type Error = GPIOError;
     fn try_from(gpio_alt3: GPIOAlt3) -> GPIOResult<Self> {
         let (sel_ptr, mode_bit) = get_selection_pointer(gpio_alt3.pin)?;
@@ -186,7 +148,7 @@ impl TryFrom<GPIOAlt3> for GPIOOut {
         // We know that sel_ptr is not null.
         let mut current_mode = unsafe { sel_ptr.read_volatile() };
         current_mode &= !(0b111 << mode_bit);
-        current_mode |= 0b001 << mode_bit;
+        current_mode |= 0b000 << mode_bit;
 
         unsafe { sel_ptr.write_volatile(current_mode) };
         Ok(Self {
@@ -196,7 +158,7 @@ impl TryFrom<GPIOAlt3> for GPIOOut {
     }
 }
 
-impl TryFrom<GPIOAlt4> for GPIOOut {
+impl TryFrom<GPIOAlt4> for GPIOIn {
     type Error = GPIOError;
     fn try_from(gpio_alt4: GPIOAlt4) -> GPIOResult<Self> {
         let (sel_ptr, mode_bit) = get_selection_pointer(gpio_alt4.pin)?;
@@ -205,7 +167,7 @@ impl TryFrom<GPIOAlt4> for GPIOOut {
         // We know that sel_ptr is not null.
         let mut current_mode = unsafe { sel_ptr.read_volatile() };
         current_mode &= !(0b111 << mode_bit);
-        current_mode |= 0b001 << mode_bit;
+        current_mode |= 0b000 << mode_bit;
 
         unsafe { sel_ptr.write_volatile(current_mode) };
         Ok(Self {
@@ -215,7 +177,7 @@ impl TryFrom<GPIOAlt4> for GPIOOut {
     }
 }
 
-impl TryFrom<GPIOAlt5> for GPIOOut {
+impl TryFrom<GPIOAlt5> for GPIOIn {
     type Error = GPIOError;
     fn try_from(gpio_alt5: GPIOAlt5) -> GPIOResult<Self> {
         let (sel_ptr, mode_bit) = get_selection_pointer(gpio_alt5.pin)?;
@@ -224,7 +186,7 @@ impl TryFrom<GPIOAlt5> for GPIOOut {
         // We know that sel_ptr is not null.
         let mut current_mode = unsafe { sel_ptr.read_volatile() };
         current_mode &= !(0b111 << mode_bit);
-        current_mode |= 0b001 << mode_bit;
+        current_mode |= 0b000 << mode_bit;
 
         unsafe { sel_ptr.write_volatile(current_mode) };
         Ok(Self {
@@ -234,7 +196,7 @@ impl TryFrom<GPIOAlt5> for GPIOOut {
     }
 }
 
-impl GPIOOut {
+impl GPIOIn {
     /// Create a new GPIO Output pin object
     ///
     /// # Errors
@@ -251,7 +213,7 @@ impl GPIOOut {
         // We know that sel_ptr is not null.
         let mut current_mode = unsafe { sel_ptr.read_volatile() };
         current_mode &= !(0b111 << mode_bit);
-        current_mode |= 0b001 << mode_bit;
+        current_mode |= 0b000 << mode_bit;
 
         unsafe { sel_ptr.write_volatile(current_mode) };
         let pull = unsafe { default_pull_after_power_up(pin_num)? };

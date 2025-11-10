@@ -1,6 +1,9 @@
 //! Collection of types for the BCM2837 GPIO interface.
 
+use core::error::Error;
+
 /// Different hardware error cases.
+#[derive(Debug)]
 pub enum GPIOError {
     /// The pin was not configured properly with GPFSEL.
     WrongFunction,
@@ -14,15 +17,17 @@ pub enum GPIOError {
     InternalPinFunction,
     /// The pin cannot be converted to the alternative mode, as it is not defined.
     UndefinedPinFunction,
-    /// An unknown error.
-    UnknownError,
+    /// An unknown read error.
+    UnknownReadError,
+    /// An unknown write error. This usually causes a bad state.
+    UnknownWriteError,
     // TODO: Add more GPIO error cases.
 }
 
 pub type GPIOResult<T> = Result<T, GPIOError>;
 
 /// Default pin state as configured by the pull resistors.
-#[derive(Default)]
+#[derive(Default, PartialEq)]
 pub enum GPIOPull {
     /// There is no pull. Can't be used other than for Output.
     #[default]
