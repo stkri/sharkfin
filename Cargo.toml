@@ -4,6 +4,7 @@ resolver = "3"
 members = [
     "drivers/driver_traits",
     "drivers/gpio/*",
+    "drivers/uart/*",
     "sharkfin_kernel",
     "kernel_utils"
 ]

@@ -1,7 +1,7 @@
 //! Trait implementations for GPIOError.
 
-use core::error::Error;
 pub use crate::gpio_types::GPIOError;
+use core::error::Error;
 use core::fmt::Display;
 use core::fmt::Formatter;
 
@@ -12,14 +12,12 @@ impl Display for GPIOError {
             GPIOError::NoPull => write!(f, "Attempted to use a GPIO without a pull state."),
             GPIOError::UnknownReadError => write!(f, "Unknown error when reading GPIO."),
             GPIOError::UnknownWriteError => write!(f, "Unknown error when writing GPIO."),
-            GPIOError::InternalPinFunction => write!(
-                f,
-                "The chosen pin is used for an internal function"
-            ),
-            GPIOError::ReservedPinFunction => write!(
-                f,
-                "The chosen pin is used for a reserved function"
-            ),
+            GPIOError::InternalPinFunction => {
+                write!(f, "The chosen pin is used for an internal function")
+            }
+            GPIOError::ReservedPinFunction => {
+                write!(f, "The chosen pin is used for a reserved function")
+            }
             GPIOError::UndefinedPinFunction => write!(f, "No defined function for the chosen pin"),
             GPIOError::WrongFunction => write!(
                 f,

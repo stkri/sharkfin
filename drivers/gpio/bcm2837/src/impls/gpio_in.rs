@@ -1,13 +1,13 @@
 //! These are the implementations for GPIOIn
 
-use crate::common_functions::{default_pull_after_power_up, get_set_pull_clock_pointer};
 use crate::common_functions::get_read_pointer;
 use crate::common_functions::get_selection_pointer;
-pub use crate::gpio_types::*;
-pub use driver_traits::gpio_pin::InputPin;
-pub use driver_traits::gpio_pin::ConfigurablePull;
-use kernel_utils::nops::wait_cycles;
+use crate::common_functions::{default_pull_after_power_up, get_set_pull_clock_pointer};
 use crate::gpio_addresses::GPIO_PIN_SET_PULL;
+pub use crate::gpio_types::*;
+pub use driver_traits::gpio_pin::ConfigurablePull;
+pub use driver_traits::gpio_pin::InputPin;
+use kernel_utils::nops::wait_cycles;
 
 impl InputPin for GPIOIn {
     type Error = GPIOError;
