@@ -7,6 +7,8 @@ use core::arch::global_asm;
 use core::panic::PanicInfo;
 use uart::uart_types::UART;
 use core::fmt::Write;
+use uart::impls::uart::SerialInput;
+use kernel_utils::nops::wait_cycles;
 
 #[cfg(target_arch = "aarch64")]
 global_asm!(include_str!("asm/aarch64/boot.aarch64.s"));
@@ -15,14 +17,21 @@ global_asm!(include_str!("asm/aarch64/boot.aarch64.s"));
 #[unsafe(no_mangle)]
 pub extern "C" fn kernel_main() -> ! {
     let mut u = unsafe { UART::new(115200) };
-    writeln!(u, "Hello, world!").unwrap();
-    write!(u, "OMG IT WORKS... YAY {:.4}, 🎉", core::f32::consts::PI).unwrap();
 
-    loop {}
+    loop {
+        let c = u.read_byte().unwrap() as char;
+        match c {
+            '\0' => {},
+            c => writeln!(u, "{}", c).unwrap(),
+        }
+        wait_cycles(1000);
+    }
 }
 /// Kernel panic handler.\
 /// **Do not edit unless you know what you are doing.**
 #[panic_handler]
-fn panic(_info: &PanicInfo) -> ! {
+fn panic(info: &PanicInfo) -> ! {
+    let mut u = unsafe { UART::new(115200) };
+    writeln!(u, "{}", info).ok();
     loop {}
 }

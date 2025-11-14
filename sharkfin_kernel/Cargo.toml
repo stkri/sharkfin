@@ -7,3 +7,4 @@ edition = "2024"
 gpio = { path = "../drivers/gpio/bcm2837", package = "driver_gpio_bcm2837" }
 uart = { path = "../drivers/uart/bcm2837_pl011", package = "driver_uart_bcm2837_pl011"}
 kernel_utils = { path = "../kernel_utils" }
+embedded-io = "0.7.1"

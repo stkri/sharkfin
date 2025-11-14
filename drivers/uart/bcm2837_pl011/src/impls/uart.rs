@@ -3,6 +3,8 @@ use driver_gpio_bcm2837::gpio_types::GPIOAlt0;
 use crate::uart_addresses::*;
 pub use driver_traits::uart::SerialOutput;
 use core::fmt::Write;
+pub use driver_traits::uart::SerialInput;
+pub use driver_traits::uart::SerialFull;
 
 const CLOCK_FREQ: u32 = 48_000_000u32;
 
@@ -25,6 +27,16 @@ impl SerialOutput for UART {
         Ok(())
     }
 }
+
+impl SerialInput for UART {
+    type Error = UARTError;
+    fn read_byte(&self) -> UARTResult<u8> {
+        while unsafe { FLAG_REGISTER.read_volatile() } & 0b1_0000 == 0 {}
+        Ok(unsafe { DATA_REGISTER.read_volatile() as u8 })
+    }
+}
+
+impl SerialFull for UART {}
 impl UART {
     pub unsafe fn new(baud_rate: u32) -> Self {
         unsafe { GPIOAlt0::new(14).unwrap() };
