@@ -1,7 +1,5 @@
 //! Collection of types for the BCM2837 GPIO interface.
 
-use core::error::Error;
-
 /// Different hardware error cases.
 #[derive(Debug)]
 pub enum GPIOError {

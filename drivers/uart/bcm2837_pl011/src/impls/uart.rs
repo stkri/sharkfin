@@ -31,7 +31,7 @@ impl SerialOutput for UART {
 impl SerialInput for UART {
     type Error = UARTError;
     fn read_byte(&self) -> UARTResult<u8> {
-        while unsafe { FLAG_REGISTER.read_volatile() } & 0b1_0000 == 0 {}
+        while unsafe { FLAG_REGISTER.read_volatile() } & 0b1_0000 != 0 {}
         Ok(unsafe { DATA_REGISTER.read_volatile() as u8 })
     }
 }
