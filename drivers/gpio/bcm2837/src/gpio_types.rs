@@ -25,7 +25,7 @@ pub enum GPIOError {
 pub type GPIOResult<T> = Result<T, GPIOError>;
 
 /// Default pin state as configured by the pull resistors.
-#[derive(Default, PartialEq)]
+#[derive(Clone, Copy, Default, PartialEq)]
 pub enum GPIOPull {
     /// There is no pull. Can't be used other than for Output.
     #[default]
@@ -37,14 +37,14 @@ pub enum GPIOPull {
 }
 
 /// Type corresponding to input (`000`).
-#[derive(Default)]
+#[derive(Clone, Copy, Default, PartialEq)]
 pub struct GPIOIn {
     pub pin: u8,
     pub pull: GPIOPull,
 }
 
 /// Type corresponding to output (`001`).
-#[derive(Default)]
+#[derive(Clone, Copy, Default)]
 pub struct GPIOOut {
     pub pin: u8,
     pub pull: GPIOPull,

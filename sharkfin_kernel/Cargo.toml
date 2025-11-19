@@ -4,7 +4,6 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-gpio = { path = "../drivers/gpio/bcm2837", package = "driver_gpio_bcm2837" }
 uart = { path = "../drivers/uart/bcm2837_pl011", package = "driver_uart_bcm2837_pl011"}
-kernel_utils = { path = "../kernel_utils" }
+device = { path = "../devices/rpi_3b_plus", package = "device_rpi_3b_plus"}
 

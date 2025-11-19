@@ -1,18 +1,24 @@
-pub use crate::uart_types::*;
-use driver_gpio_bcm2837::gpio_types::GPIOAlt0;
 use crate::uart_addresses::*;
-pub use driver_traits::uart::SerialOutput;
+pub use crate::uart_types::*;
 use core::fmt::Write;
-pub use driver_traits::uart::SerialInput;
+use driver_gpio_bcm2837::gpio_types::GPIOAlt0;
 pub use driver_traits::uart::SerialFull;
+pub use driver_traits::uart::SerialInput;
+pub use driver_traits::uart::SerialOutput;
 
 const CLOCK_FREQ: u32 = 48_000_000u32;
 
 impl Write for UART {
     fn write_str(&mut self, s: &str) -> core::fmt::Result {
         for c in s.bytes() {
+            if c == b'\n' {
+                match self.write_byte(b'\r') {
+                    Ok(_) => {}
+                    Err(_) => return Err(core::fmt::Error),
+                }
+            }
             match self.write_byte(c) {
-                Ok(_) => {},
+                Ok(_) => {}
                 Err(_) => return Err(core::fmt::Error),
             }
         }
@@ -44,13 +50,11 @@ impl UART {
 
         unsafe { CONTROL_REGISTER.write_volatile(0) };
 
-        while unsafe { FLAG_REGISTER.read_volatile() } & 0b1000 == 0b1000 {}
-
         unsafe { LINE_CONTROL_REGISTER.write_volatile(0b0_11_1_0_0_0_0_0) };
 
         let fractional = CLOCK_FREQ as f32 / (16 * baud_rate) as f32;
         let ibrd = fractional as u32;
-        let fbrd= (( fractional - ibrd as f32 ) * 64.0) as u32;
+        let fbrd = ((fractional - ibrd as f32) * 64.0) as u32;
 
         unsafe { INTEGER_BAUD_RATE_DIVISOR.write_volatile(ibrd) }
         unsafe { FRACTION_BAUD_RATE_DIVISOR.write_volatile(fbrd) }

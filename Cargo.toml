@@ -7,7 +7,7 @@ members = [
     "drivers/uart/*",
     "sharkfin_kernel",
     "kernel_utils"
-]
+, "devices/rpi_3b_plus"]
 
 [profile.dev]
 panic = "abort"

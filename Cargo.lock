@@ -3,6 +3,14 @@
 version = 4
 
 [[package]]
+name = "device_rpi_3b_plus"
+version = "0.1.0"
+dependencies = [
+ "driver_gpio_bcm2837",
+ "driver_uart_bcm2837_pl011",
+]
+
+[[package]]
 name = "driver_gpio_bcm2837"
 version = "0.1.0"
 dependencies = [
@@ -30,7 +38,6 @@ version = "0.1.0"
 name = "sharkfin_kernel"
 version = "0.1.0"
 dependencies = [
- "driver_gpio_bcm2837",
+ "device_rpi_3b_plus",
  "driver_uart_bcm2837_pl011",
- "kernel_utils",
 ]
