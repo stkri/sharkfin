@@ -1,11 +1,11 @@
 [package]
-name = "driver_gpio_bcm2837"
+name = "driver_clock_bcm2837"
 version = "0.1.0"
 edition = "2024"
-
-[lints]
-workspace = true
 
 [dependencies]
 driver_traits = { path = "../../driver_traits" }
 kernel_utils = { path = "../../../kernel_utils" }
+
+[lints]
+workspace = true

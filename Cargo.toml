@@ -7,7 +7,11 @@ members = [
     "drivers/uart/*",
     "sharkfin_kernel",
     "kernel_utils"
-, "devices/rpi_3b_plus"]
+, "devices/*", "drivers/clock/*", "arch/aarch64/*"]
+
+[workspace.lints.clippy]
+all = "warn"
+pedantic = "warn"
 
 [profile.dev]
 panic = "abort"

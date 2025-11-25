@@ -1,4 +1,4 @@
-//! Trait implementations for GPIOError.
+//! Trait implementations for `GPIOError`.
 
 pub use crate::gpio_types::GPIOError;
 use core::error::Error;

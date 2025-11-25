@@ -16,4 +16,6 @@ _start:
         b           .clear_bss
 
     .call_main_when_bss_empty:
+        ldr     x0, =vector_table
+        msr     vbar_el2, x0
         b           kernel_main

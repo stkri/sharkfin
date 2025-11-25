@@ -52,7 +52,7 @@ pub trait OutputPin {
     /// Make sure hardware addresses are valid, and the pin is properly set up.
     fn set_high(&mut self) -> Result<(), Self::Error>;
 }
-/// Extension to OutputPin abstraction.
+/// Extension to `OutputPin` abstraction.
 /// Guarantees a possibility to check the set pin state.
 ///
 /// **If you are using a driver, avoid using these functions.**\

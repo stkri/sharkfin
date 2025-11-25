@@ -3,6 +3,9 @@ name = "driver_uart_bcm2837_pl011"
 version = "0.1.0"
 edition = "2024"
 
+[lints]
+workspace = true
+
 [dependencies]
 driver_gpio_bcm2837 = { path = "../../gpio/bcm2837"}
 driver_traits = { path = "../../driver_traits"}

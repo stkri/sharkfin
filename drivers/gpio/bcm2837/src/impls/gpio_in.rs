@@ -1,4 +1,4 @@
-//! These are the implementations for GPIOIn
+//! These are the implementations for `GPIOIn`
 
 use crate::common_functions::get_read_pointer;
 use crate::common_functions::get_selection_pointer;

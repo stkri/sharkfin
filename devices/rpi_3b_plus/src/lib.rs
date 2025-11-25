@@ -1,10 +1,46 @@
 #![no_std]
 
+use core::cell::Cell;
 use core::fmt::Write;
+use core::time::Duration;
+use critical_section::Mutex;
+use critical_section::RawRestoreState;
+use driver_clock_bcm2837::clock_types::SystemClock;
+use driver_clock_bcm2837::impls::system_clock::SysClockTrait;
 use driver_gpio_bcm2837::gpio_types::{GPIOIn, GPIOOut};
 use driver_gpio_bcm2837::impls::gpio_in::InputPin;
 use driver_gpio_bcm2837::impls::gpio_out::{OutputPin, StatefulOutputPin};
 use driver_uart_bcm2837_pl011::impls::uart::{SerialInput, UART};
+
+struct DeviceCriticalSection;
+critical_section::set_impl!(DeviceCriticalSection);
+
+unsafe impl critical_section::Impl for DeviceCriticalSection {
+    unsafe fn acquire() -> RawRestoreState {
+        let daif: u64;
+        unsafe {
+            core::arch::asm!(
+                "mrs {}, daif",
+                "msr daifset, #3",
+                out(reg) daif,
+                options(nomem, nostack)
+            )
+        }
+        daif as RawRestoreState
+    }
+
+    unsafe fn release(restore_state: RawRestoreState) {
+        unsafe {
+            core::arch::asm!(
+            "msr daif, {}",
+            in(reg) restore_state,
+            options(nomem, nostack)
+            );
+        }
+    }
+}
+
+pub static DEVICE: Mutex<Cell<Option<Device>>> = Mutex::new(Cell::new(None));
 
 #[derive(Clone, Copy)]
 pub enum GPIO {
@@ -14,20 +50,45 @@ pub enum GPIO {
     Uninit,
 }
 
+#[derive(Clone, Copy)]
 pub struct Device {
-    uart: UART,
+    pub uart: UART,
     led: Option<GPIOOut>,
+    clock: SystemClock,
     gpios: [GPIO; 54],
 }
 
-pub const BAUD_RATE: u32 = 115200;
+pub const BAUD_RATE: u32 = 115_200;
 pub const LED_PIN: u8 = 29;
 
+impl Default for Device {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+pub fn init_global_device() {
+    let device = Device::new();
+    critical_section::with(|cs| {
+        DEVICE.borrow(cs).set(Some(device));
+    })
+}
+
 impl Device {
+    #[must_use]
     pub fn new() -> Self {
         let mut uart = unsafe { UART::new(BAUD_RATE) };
 
         writeln!(uart, "SHARKFIN 0.1.0").unwrap();
+        writeln!(uart, "Device: Raspberry Pi 3 Model B+").unwrap();
+        writeln!(uart, "CPU: Broadcom 2837B0").unwrap();
+
+        let el: u64;
+        unsafe {
+            core::arch::asm!("mrs {}, CurrentEL", out(reg) el);
+        }
+        writeln!(uart, "Exception level: {}", el >> 2).unwrap();
+
         writeln!(uart, "[   OK   ]\t\tInitialized UART").unwrap();
 
         let led = match unsafe { GPIOOut::new(29) } {
@@ -37,7 +98,7 @@ impl Device {
             }
             Err(e) => {
                 writeln!(uart, "[ FAILED ]\tLED could not be initialised\n").unwrap();
-                writeln!(uart, "[ REASON ]\t{}", e).unwrap();
+                writeln!(uart, "[ REASON ]\t{e}").unwrap();
                 None
             }
         };
@@ -48,15 +109,16 @@ impl Device {
             match pin {
                 14 | 15 | 29 => gpios[pin] = GPIO::Reserved,
                 n => {
+                    #[allow(clippy::cast_possible_truncation)]
                     let pin = match unsafe { GPIOOut::new(n as u8) } {
                         Ok(pin) => {
-                            writeln!(uart, "[   OK   ]\t\tGPIO pin {} initialized", n).unwrap();
+                            writeln!(uart, "[   OK   ]\t\tGPIO pin {n} initialized").unwrap();
                             GPIO::Out(pin)
                         }
                         Err(e) => {
-                            writeln!(uart, "[ FAILED ]\tGPIO pin {} could not be initialised", n)
+                            writeln!(uart, "[ FAILED ]\tGPIO pin {n} could not be initialized")
                                 .unwrap();
-                            writeln!(uart, "[ REASON ]\t{}", e).unwrap();
+                            writeln!(uart, "[ REASON ]\t{e}").unwrap();
                             GPIO::Uninit
                         }
                     };
@@ -64,8 +126,20 @@ impl Device {
                 }
             }
         }
+        let clock = SystemClock;
+        writeln!(
+            uart,
+            "[   OK   ]\t\tSystem Clock initialized. It is: {} us",
+            clock.get_time()
+        )
+        .unwrap();
 
-        Self { uart, led, gpios }
+        Self {
+            uart,
+            led,
+            clock,
+            gpios,
+        }
     }
 
     pub fn run_dsh(&mut self) {
@@ -93,7 +167,7 @@ impl Device {
             match c {
                 b'\0' => {}
                 b'\n' | b'\r' => {
-                    writeln!(self.uart, "").unwrap();
+                    writeln!(self.uart).unwrap();
                     return pos;
                 }
                 b'\x08' | b'\x7F' => {
@@ -123,6 +197,8 @@ impl Device {
             b"l" | b"led" => self.cmd_led(args),
             b"g" | b"gpio" => self.cmd_gpio(args),
             b"h" | b"help" => self.cmd_help(args),
+            b"t" | b"time" => self.cmd_time(),
+            b"w" | b"wait" => self.cmd_wait(args),
             _ => writeln!(
                 self.uart,
                 "No such command: {}",
@@ -134,11 +210,12 @@ impl Device {
 
     fn cmd_clear(&mut self) {
         for _ in 0..100 {
-            writeln!(self.uart, "").unwrap();
+            writeln!(self.uart).unwrap();
         }
     }
 
-    fn cmd_panic(&mut self, args: &[u8]) {
+    #[allow(clippy::unused_self)]
+    fn cmd_panic(&self, args: &[u8]) {
         if args.is_empty() {
             panic!("User initiated panic");
         } else {
@@ -149,16 +226,41 @@ impl Device {
         }
     }
 
+    fn cmd_wait(&mut self, args: &[u8]) {
+        let Some(duration) = self.get_duration(args) else {
+            return;
+        };
+        self.clock.sleep(duration);
+    }
+
+    fn get_duration(&mut self, arg: &[u8]) -> Option<Duration> {
+        match core::str::from_utf8(arg) {
+            Err(_) => {
+                writeln!(self.uart, "Error: Malformed UTF-8 string").unwrap();
+                None
+            }
+            Ok(s) => match s.parse::<u64>() {
+                Err(_) => {
+                    writeln!(self.uart, "Expected numeric arguments").unwrap();
+                    None
+                }
+                Ok(t) => Some(Duration::from_millis(t)),
+            },
+        }
+    }
+
+    fn cmd_time(&mut self) {
+        writeln!(self.uart, "{} us", self.clock.get_time()).unwrap();
+    }
+
     fn cmd_echo(&mut self, args: &[u8]) {
         if args.is_empty() {
-            writeln!(self.uart, "").unwrap();
+            writeln!(self.uart).unwrap();
         } else {
             writeln!(
                 self.uart,
                 "{}",
-                core::str::from_utf8(args).unwrap_or(
-                    "Error: malformed UTF-8 string"
-                )
+                core::str::from_utf8(args).unwrap_or("Error: malformed UTF-8 string")
             )
             .unwrap();
         }
@@ -169,10 +271,12 @@ impl Device {
             writeln!(self.uart, "Commands:").unwrap();
             writeln!(self.uart, "\tclear (c)\tClear screen").unwrap();
             writeln!(self.uart, "\techo (e)\tEcho text").unwrap();
+            writeln!(self.uart, "\tgpio (g)\tControl GPIO").unwrap();
             writeln!(self.uart, "\thelp (h)\tShow this text").unwrap();
             writeln!(self.uart, "\tled (l)\t\tControl LED").unwrap();
-            writeln!(self.uart, "\tgpio (g)\tControl GPIO").unwrap();
             writeln!(self.uart, "\tpanic (p)\tTrigger panic").unwrap();
+            writeln!(self.uart, "\ttime (t)\tGet time").unwrap();
+            writeln!(self.uart, "\twait (w)\tWait for a given time").unwrap();
             writeln!(self.uart).unwrap();
             writeln!(
                 self.uart,
@@ -183,23 +287,23 @@ impl Device {
             match &args[0..find_next_space(args, 0, args.len())] {
                 b"c" | b"clear" => {
                     writeln!(self.uart, "\tclear (c)").unwrap();
-                    writeln!(self.uart, "").unwrap();
+                    writeln!(self.uart).unwrap();
                     writeln!(self.uart, "Clear the screen").unwrap();
                 }
                 b"p" | b"panic" => {
                     writeln!(self.uart, "\tpanic (p) [msg]").unwrap();
-                    writeln!(self.uart, "").unwrap();
+                    writeln!(self.uart).unwrap();
                     writeln!(self.uart, "Trigger a kernel panic with a message.").unwrap();
                     writeln!(self.uart, "The default message is \"User initiated panic\"").unwrap();
                 }
                 b"e" | b"echo" => {
                     writeln!(self.uart, "\techo (e) <msg>").unwrap();
-                    writeln!(self.uart, "").unwrap();
+                    writeln!(self.uart).unwrap();
                     writeln!(self.uart, "Echo a message").unwrap();
                 }
                 b"l" | b"led" => {
                     writeln!(self.uart, "\tled (l) <on|off|toggle|state>").unwrap();
-                    writeln!(self.uart, "").unwrap();
+                    writeln!(self.uart).unwrap();
                     writeln!(self.uart, "Control the on-board activity LED.").unwrap();
                     writeln!(self.uart, "Subcommands: ").unwrap();
                     writeln!(self.uart, "\ton (h)\t\tturn the led on").unwrap();
@@ -212,10 +316,10 @@ impl Device {
                 b"g" | b"gpio" => {
                     writeln!(self.uart, "\tgpio (g) <pin> <in|out|state> [args]").unwrap();
                     writeln!(self.uart, "Control the chosen GPIO pin").unwrap();
-                    writeln!(self.uart, "").unwrap();
+                    writeln!(self.uart).unwrap();
                     writeln!(self.uart, "\tgpio <pin> in (i)").unwrap();
                     writeln!(self.uart, "Set the pin for input and get voltage level").unwrap();
-                    writeln!(self.uart, "").unwrap();
+                    writeln!(self.uart).unwrap();
                     writeln!(self.uart, "\tgpio <pin> out (o) <on|off|toggle>").unwrap();
                     writeln!(self.uart, "Set the pin for output and set voltage").unwrap();
                     writeln!(self.uart, "Subcommands: ").unwrap();
@@ -227,6 +331,14 @@ impl Device {
                     writeln!(self.uart).unwrap();
                     writeln!(self.uart, "\tgpio <pin> state (s)").unwrap();
                     writeln!(self.uart, "Print the current pin state").unwrap();
+                }
+                b"t" | b"time" => {
+                    writeln!(self.uart, "\ttime (t)").unwrap();
+                    writeln!(self.uart, "Print the current system clock time").unwrap();
+                }
+                b"w" | b"wait" => {
+                    writeln!(self.uart, "\twait (w) <millis>").unwrap();
+                    writeln!(self.uart, "Wait for the given amount of milliseconds").unwrap();
                 }
                 _ => self.cmd_help(b""),
             }
@@ -257,7 +369,7 @@ impl Device {
             b"s" | b"state" => match led.is_set_high() {
                 Ok(true) => writeln!(self.uart, "ON").unwrap(),
                 Ok(false) => writeln!(self.uart, "OFF").unwrap(),
-                Err(e) => writeln!(self.uart, "Error: {}", e).unwrap(),
+                Err(e) => writeln!(self.uart, "Error: {e}").unwrap(),
             },
             _ => {
                 writeln!(
@@ -272,9 +384,8 @@ impl Device {
     }
 
     fn cmd_gpio(&mut self, args: &[u8]) {
-        let pin_id = match self.parse_gpio_pin(args) {
-            Some(id) => id,
-            None => return,
+        let Some(pin_id) = self.parse_gpio_pin(args) else {
+            return;
         };
 
         let pin_end = find_next_space(args, 0, args.len());
@@ -322,24 +433,18 @@ impl Device {
         }
 
         let pin_end = find_next_space(args, 0, args.len());
-        let pin_str = match core::str::from_utf8(&args[0..pin_end]) {
-            Err(_) => {
-                writeln!(self.uart, "Error: malformed UTF-8 string").unwrap();
-                return None;
-            }
-            Ok(s) => s,
+        let Ok(pin_str) = core::str::from_utf8(&args[0..pin_end]) else {
+            writeln!(self.uart, "Error: malformed UTF-8 string").unwrap();
+            return None;
         };
 
-        let pin_id = match pin_str.parse::<usize>() {
-            Err(_) => {
-                writeln!(self.uart, "Error: expected numeric argument").unwrap();
-                return None;
-            }
-            Ok(i) => i,
+        let Ok(pin_id) = pin_str.parse::<usize>() else {
+            writeln!(self.uart, "Error: expected numeric argument").unwrap();
+            return None;
         };
 
         if pin_id > 53 {
-            writeln!(self.uart, "Error: pin {} doesn't exist", pin_id).unwrap();
+            writeln!(self.uart, "Error: pin {pin_id} doesn't exist").unwrap();
             return None;
         }
 
@@ -349,13 +454,13 @@ impl Device {
     fn gpio_read_input(&mut self, pin_id: usize) {
         match self.gpios[pin_id] {
             GPIO::Reserved => {
-                writeln!(self.uart, "Error: Pin {} is reserved", pin_id).unwrap();
+                writeln!(self.uart, "Error: Pin {pin_id} is reserved").unwrap();
             }
             GPIO::Uninit => {
-                writeln!(self.uart, "Error: Pin {} is uninitialized", pin_id).unwrap();
+                writeln!(self.uart, "Error: Pin {pin_id} is uninitialized").unwrap();
             }
             GPIO::Out(pin) => match GPIOIn::try_from(pin) {
-                Err(e) => writeln!(self.uart, "Error: {}", e).unwrap(),
+                Err(e) => writeln!(self.uart, "Error: {e}").unwrap(),
                 Ok(input_pin) => {
                     self.read_pin_state(input_pin);
                     self.gpios[pin_id] = GPIO::In(input_pin);
@@ -379,16 +484,16 @@ impl Device {
 
         let mut output_pin = match self.gpios[pin_id] {
             GPIO::Reserved => {
-                writeln!(self.uart, "Error: Pin {} is reserved", pin_id).unwrap();
+                writeln!(self.uart, "Error: Pin {pin_id} is reserved").unwrap();
                 return;
             }
             GPIO::Uninit => {
-                writeln!(self.uart, "Error: Pin {} is uninitialized", pin_id).unwrap();
+                writeln!(self.uart, "Error: Pin {pin_id} is uninitialized").unwrap();
                 return;
             }
             GPIO::In(pin) => match GPIOOut::try_from(pin) {
                 Err(e) => {
-                    writeln!(self.uart, "Error: {}", e).unwrap();
+                    writeln!(self.uart, "Error: {e}").unwrap();
                     return;
                 }
                 Ok(out_pin) => {
@@ -402,21 +507,21 @@ impl Device {
         match cmd {
             b"h" | b"high" | b"on" => {
                 if let Err(e) = output_pin.set_high() {
-                    writeln!(self.uart, "Error: {}", e).unwrap();
+                    writeln!(self.uart, "Error: {e}").unwrap();
                 } else {
                     self.gpios[pin_id] = GPIO::Out(output_pin);
                 }
             }
             b"l" | b"low" | b"off" => {
                 if let Err(e) = output_pin.set_low() {
-                    writeln!(self.uart, "Error: {}", e).unwrap();
+                    writeln!(self.uart, "Error: {e}").unwrap();
                 } else {
                     self.gpios[pin_id] = GPIO::Out(output_pin);
                 }
             }
             b"t" | b"toggle" => {
                 if let Err(e) = output_pin.toggle() {
-                    writeln!(self.uart, "Error: {}", e).unwrap();
+                    writeln!(self.uart, "Error: {e}").unwrap();
                 } else {
                     self.gpios[pin_id] = GPIO::Out(output_pin);
                 }
@@ -433,20 +538,20 @@ impl Device {
     fn gpio_show_state(&mut self, pin_id: usize) {
         match self.gpios[pin_id] {
             GPIO::Reserved => {
-                writeln!(self.uart, "Pin {} is reserved", pin_id).unwrap();
+                writeln!(self.uart, "Pin {pin_id} is reserved").unwrap();
             }
             GPIO::Uninit => {
-                writeln!(self.uart, "Pin {} is uninitialized", pin_id).unwrap();
+                writeln!(self.uart, "Pin {pin_id} is uninitialized").unwrap();
             }
             GPIO::In(_) => {
-                writeln!(self.uart, "Pin {} is in INPUT mode", pin_id).unwrap();
+                writeln!(self.uart, "Pin {pin_id} is in INPUT mode").unwrap();
             }
             GPIO::Out(pin) => {
-                write!(self.uart, "Pin {} is in OUTPUT mode, state: ", pin_id).unwrap();
+                write!(self.uart, "Pin {pin_id} is in OUTPUT mode, state: ").unwrap();
                 match pin.is_set_high() {
                     Ok(true) => writeln!(self.uart, "HIGH").unwrap(),
                     Ok(false) => writeln!(self.uart, "LOW").unwrap(),
-                    Err(e) => writeln!(self.uart, "Error: {}", e).unwrap(),
+                    Err(e) => writeln!(self.uart, "Error: {e}").unwrap(),
                 }
             }
         }
@@ -456,7 +561,7 @@ impl Device {
         match pin.is_high() {
             Ok(true) => writeln!(self.uart, "HIGH").unwrap(),
             Ok(false) => writeln!(self.uart, "LOW").unwrap(),
-            Err(e) => writeln!(self.uart, "Error: {}", e).unwrap(),
+            Err(e) => writeln!(self.uart, "Error: {e}").unwrap(),
         }
     }
 }

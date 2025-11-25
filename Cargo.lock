@@ -3,11 +3,27 @@
 version = 4
 
 [[package]]
+name = "critical-section"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "790eea4361631c5e7d22598ecd5723ff611904e3344ce8720784c93e3d83d40b"
+
+[[package]]
 name = "device_rpi_3b_plus"
 version = "0.1.0"
 dependencies = [
+ "critical-section",
+ "driver_clock_bcm2837",
  "driver_gpio_bcm2837",
  "driver_uart_bcm2837_pl011",
+]
+
+[[package]]
+name = "driver_clock_bcm2837"
+version = "0.1.0"
+dependencies = [
+ "driver_traits",
+ "kernel_utils",
 ]
 
 [[package]]
@@ -31,6 +47,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "interrupt_gic"
+version = "0.1.0"
+
+[[package]]
 name = "kernel_utils"
 version = "0.1.0"
 
@@ -38,6 +58,7 @@ version = "0.1.0"
 name = "sharkfin_kernel"
 version = "0.1.0"
 dependencies = [
+ "critical-section",
  "device_rpi_3b_plus",
  "driver_uart_bcm2837_pl011",
 ]

@@ -1,5 +1,5 @@
 //! MMIO mappings for the BCM2837.\
-//! This library uses NonNulls.
+//! This library uses `NonNulls`.
 
 use core::ptr::NonNull;
 
@@ -151,13 +151,13 @@ pub const GPIO_GET_LEVEL_1: NonNull<u32> =
 /// - `10`: Pull up
 ///
 /// # Usage
-/// To be used with GPIO_PIN_SET_PULL_CLOCK in following way:
-/// 1. Write to GPIO_PIN_SET_PULL
+/// To be used with `GPIO_PIN_SET_PULL_CLOCK` in following way:
+/// 1. Write to `GPIO_PIN_SET_PULL`
 /// 2. Wait 150 cycles
-/// 3. Write to GPIO_PIN_SET_PULL_CLOCK_*
+/// 3. Write to `GPIO_PIN_SET_PULL_CLOCK`_*
 /// 4. Wait 150 cycles
-/// 5. Clear GPIO_PIN_SET_PULL
-/// 6. Clear GPIO_PIN_SET_PULL_CLOCK_*
+/// 5. Clear `GPIO_PIN_SET_PULL`
+/// 6. Clear `GPIO_PIN_SET_PULL_CLOCK`_*
 pub const GPIO_PIN_SET_PULL: NonNull<u32> =
     unsafe { NonNull::new_unchecked(0x3F20_0094 as *mut u32) };
 
@@ -165,13 +165,13 @@ pub const GPIO_PIN_SET_PULL: NonNull<u32> =
 /// If bit `pin` is set to 1, the pull will be changed to what is chosen.
 ///
 /// # Usage
-/// To be used with GPIO_PIN_SET_PULL_CLOCK in following way:
-/// 1. Write to GPIO_PIN_SET_PULL
+/// To be used with `GPIO_PIN_SET_PULL_CLOCK` in following way:
+/// 1. Write to `GPIO_PIN_SET_PULL`
 /// 2. Wait 150 cycles
-/// 3. Write to GPIO_PIN_SET_PULL_CLOCK_*
+/// 3. Write to `GPIO_PIN_SET_PULL_CLOCK`_*
 /// 4. Wait 150 cycles
-/// 5. Clear GPIO_PIN_SET_PULL
-/// 6. Clear GPIO_PIN_SET_PULL_CLOCK_*
+/// 5. Clear `GPIO_PIN_SET_PULL`
+/// 6. Clear `GPIO_PIN_SET_PULL_CLOCK`_*
 pub const GPIO_PIN_SET_PULL_CLOCK_0: NonNull<u32> =
     unsafe { NonNull::new_unchecked(0x3F20_0098 as *mut u32) };
 
@@ -179,12 +179,12 @@ pub const GPIO_PIN_SET_PULL_CLOCK_0: NonNull<u32> =
 /// If bit `pin - 32` is set to 1, the pull will be changed to what is chosen.
 ///
 /// # Usage
-/// To be used with GPIO_PIN_SET_PULL_CLOCK in following way:
-/// 1. Write to GPIO_PIN_SET_PULL
+/// To be used with `GPIO_PIN_SET_PULL_CLOCK` in following way:
+/// 1. Write to `GPIO_PIN_SET_PULL`
 /// 2. Wait 150 cycles
-/// 3. Write to GPIO_PIN_SET_PULL_CLOCK_*
+/// 3. Write to `GPIO_PIN_SET_PULL_CLOCK`_*
 /// 4. Wait 150 cycles
-/// 5. Clear GPIO_PIN_SET_PULL
-/// 6. Clear GPIO_PIN_SET_PULL_CLOCK_*
+/// 5. Clear `GPIO_PIN_SET_PULL`
+/// 6. Clear `GPIO_PIN_SET_PULL_CLOCK`_*
 pub const GPIO_PIN_SET_PULL_CLOCK_1: NonNull<u32> =
     unsafe { NonNull::new_unchecked(0x3F20_009C as *mut u32) };

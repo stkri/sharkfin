@@ -123,8 +123,8 @@ pub struct GPIOAlt0 {
 /// - Pin 3: Secondary memory Address bus (SA2)
 /// - Pin 4: Secondary memory Address bus (SA1)
 /// - Pin 5: Secondary memory Address bus (SA0)
-/// - Pin 6: Secondary memory Controls (SOE_N/SE)
-/// - Pin 7: Secondary memory Controls (SWE_N/SRW_N)
+/// - Pin 6: Secondary memory Controls (`SOE_N/SE`)
+/// - Pin 7: Secondary memory Controls (`SWE_N/SRW_N`)
 /// - Pin 8: Secondary memory data bus (SD0)
 /// - Pin 9: Secondary memory data bus (SD1)
 /// - Pin 10: Secondary memory data bus (SD2)
@@ -151,8 +151,8 @@ pub struct GPIOAlt0 {
 /// - Pin 31: Secondary memory Address bus (SA2)
 /// - Pin 32: Secondary memory Address bus (SA1)
 /// - Pin 33: Secondary memory Address bus (SA0)
-/// - Pin 34: Secondary memory Controls (SOE_N/SE)
-/// - Pin 35: Secondary memory Controls (SWE_N/SRW_N)
+/// - Pin 34: Secondary memory Controls (`SOE_N/SE`)
+/// - Pin 35: Secondary memory Controls (`SWE_N/SRW_N`)
 /// - Pin 36: Secondary memory data bus (SD0)
 /// - Pin 37: Secondary memory data bus (SD1)
 /// - Pin 38: Secondary memory data bus (SD2)
@@ -264,7 +264,7 @@ pub struct GPIOAlt2 {
 /// - Pin 18: BSC Slave - data/SPI Slave - MOSI (BSCSL SDA/MOSI)
 /// - Pin 19: BSC Slave - clock/SPI Slave - SCLK (BSCSL SCL/SCLK)
 /// - Pin 20: SPI Slave - MISO (BSCSL/MISO)
-/// - Pin 21: SPI Slave - CSn (BSCSL/CEN)
+/// - Pin 21: SPI Slave - `CSn` (BSCSL/CEN)
 /// - Pin 22: SD Host - clock (SD1 CLK)
 /// - Pin 23: SD Host - command (SD1 CMD)
 /// - Pin 24: SD Host - data 0 (SD1 DAT0)
@@ -375,14 +375,14 @@ pub struct GPIOAlt4 {
 /// - Pin 3: *undefined*
 /// - Pin 4: ARM JTAG data in (ARM TDI)
 /// - Pin 5: ARM JTAG data out (ARM TDO)
-/// - Pin 6: ARM JTAG return clock (ARM_RTCK)
+/// - Pin 6: ARM JTAG return clock (`ARM_RTCK`)
 /// - Pin 7: *undefined*
 /// - Pin 8: *undefined*
 /// - Pin 9: *undefined*
 /// - Pin 10: *undefined*
 /// - Pin 11: *undefined*
 /// - Pin 12: ARM JTAG mode select (ARM TMS)
-/// - Pin 13: ARM JTAG clock (ARM_TCK)
+/// - Pin 13: ARM JTAG clock (`ARM_TCK`)
 /// - Pin 14: UART 1 - transmit data (TXD1)
 /// - Pin 15: UART 1 - receive data (RXD1)
 /// - Pin 16: UART 1 - request to send (RTS1)

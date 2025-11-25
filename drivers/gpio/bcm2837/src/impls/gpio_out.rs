@@ -1,4 +1,4 @@
-//! These are the implementations for GPIOOut
+//! These are the implementations for `GPIOOut`
 use crate::common_functions::default_pull_after_power_up;
 use crate::common_functions::get_high_write_pointer;
 use crate::common_functions::get_low_write_pointer;

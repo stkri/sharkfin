@@ -2,7 +2,12 @@
 //! These are intended to be used inside the driver,
 //! but may also be used for other purposes.
 
-use crate::gpio_addresses::*;
+use crate::gpio_addresses::{
+    GPIO_FUNCTION_SELECT_0, GPIO_FUNCTION_SELECT_1, GPIO_FUNCTION_SELECT_2, GPIO_FUNCTION_SELECT_3,
+    GPIO_FUNCTION_SELECT_4, GPIO_FUNCTION_SELECT_5, GPIO_GET_LEVEL_0, GPIO_GET_LEVEL_1,
+    GPIO_PIN_SET_PULL_CLOCK_0, GPIO_PIN_SET_PULL_CLOCK_1, GPIO_SET_HIGH_0, GPIO_SET_HIGH_1,
+    GPIO_SET_LOW_0, GPIO_SET_LOW_1,
+};
 use crate::gpio_types::GPIOError;
 use crate::gpio_types::GPIOPull;
 use crate::gpio_types::GPIOResult;
@@ -10,7 +15,7 @@ use core::ptr::NonNull;
 
 /// Function which returns he correct `GPFSEL` pointer for the given pin ID.
 ///
-/// # Errors:
+/// # Errors
 /// Returns an error if `pin` is higher than 53.
 pub fn get_selection_pointer(pin: u8) -> GPIOResult<(NonNull<u32>, u8)> {
     match pin {
@@ -26,7 +31,7 @@ pub fn get_selection_pointer(pin: u8) -> GPIOResult<(NonNull<u32>, u8)> {
 
 /// Function which returns he correct `GPCLR` pointer for the given pin ID.
 ///
-/// # Errors:
+/// # Errors
 /// Returns an error if `pin` is higher than 53.
 pub fn get_low_write_pointer(pin: u8) -> GPIOResult<(NonNull<u32>, u8)> {
     match pin {
@@ -38,7 +43,7 @@ pub fn get_low_write_pointer(pin: u8) -> GPIOResult<(NonNull<u32>, u8)> {
 
 /// Function which returns he correct `GPSET` pointer for the given pin ID.
 ///
-/// # Errors:
+/// # Errors
 /// Returns an error if `pin` is higher than 53.
 pub fn get_high_write_pointer(pin: u8) -> GPIOResult<(NonNull<u32>, u8)> {
     match pin {
@@ -50,7 +55,7 @@ pub fn get_high_write_pointer(pin: u8) -> GPIOResult<(NonNull<u32>, u8)> {
 
 /// Function which returns he correct `GPLEV` pointer for the given pin ID.
 ///
-/// # Errors:
+/// # Errors
 /// Returns an error if `pin` is higher than 53.
 pub fn get_read_pointer(pin: u8) -> GPIOResult<(NonNull<u32>, u8)> {
     match pin {
@@ -62,7 +67,7 @@ pub fn get_read_pointer(pin: u8) -> GPIOResult<(NonNull<u32>, u8)> {
 
 /// Function which returns he correct `GPPUDCLK` pointer for the given pin ID.
 ///
-/// # Errors:
+/// # Errors
 /// Returns an error if `pin` is higher than 53.
 pub fn get_set_pull_clock_pointer(pin: u8) -> GPIOResult<(NonNull<u32>, u8)> {
     match pin {
@@ -74,10 +79,13 @@ pub fn get_set_pull_clock_pointer(pin: u8) -> GPIOResult<(NonNull<u32>, u8)> {
 
 /// Gets the pull state the pin is in after a power up.
 ///
-/// # Safety.
+/// # Safety
 /// This function is marked unsafe because the assumption that it is used right
 /// after power up must be true. If it isn't, and pins have already been modified,
 /// this doesn't provide any meaningful information.
+///
+/// # Errors
+/// Returns an error if `pin` is higher than 53.
 pub unsafe fn default_pull_after_power_up(pin: u8) -> GPIOResult<GPIOPull> {
     match pin {
         0..=8 | 34..=36 | 46..=53 => Ok(GPIOPull::Up),

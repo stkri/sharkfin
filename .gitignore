@@ -1,5 +1,6 @@
 # IDE directories
 /.idea
+/.zed
 
 # Build directories
 /target

@@ -7,3 +7,7 @@ pub fn wait_cycles(cycles: usize) {
         spin_loop();
     }
 }
+
+pub fn nop() {
+    spin_loop();
+}

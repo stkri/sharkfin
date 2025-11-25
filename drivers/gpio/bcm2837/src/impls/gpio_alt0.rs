@@ -41,6 +41,14 @@ impl ConfigurablePull for GPIOAlt0 {
 }
 
 impl GPIOAlt0 {
+    /// Creates a new GPIO pin configured for alternate function 0.
+    ///
+    /// # Safety
+    /// This function accesses hardware registers directly. The caller must ensure
+    /// that the hardware addresses are valid and that the pin is not being used elsewhere.
+    ///
+    /// # Errors
+    /// Returns an error if the pin number is invalid, reserved, or internal.
     pub unsafe fn new(pin_num: u8) -> GPIOResult<Self> {
         let (sel_ptr, mode_bit) = get_selection_pointer(pin_num)?;
 
