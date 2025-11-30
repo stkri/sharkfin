@@ -55,6 +55,10 @@ name = "kernel_utils"
 version = "0.1.0"
 
 [[package]]
+name = "mem"
+version = "0.1.0"
+
+[[package]]
 name = "sharkfin_kernel"
 version = "0.1.0"
 dependencies = [

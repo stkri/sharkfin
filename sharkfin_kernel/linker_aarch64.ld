@@ -25,4 +25,11 @@ SECTIONS {
     . = ALIGN(16);
     . = . + 0x4000;
     __stack_top = .;
+
+    . = ALIGN(4096);
+    __page_tables_start = .;
+    . = . + (515 * 4096);
+    __page_tables_end = .;
+
+    __heap_start = .;
 }
