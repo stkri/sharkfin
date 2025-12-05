@@ -1,46 +1,16 @@
 #![no_std]
 
-use core::cell::Cell;
 use core::fmt::Write;
 use core::time::Duration;
-use critical_section::Mutex;
-use critical_section::RawRestoreState;
 use driver_clock_bcm2837::clock_types::SystemClock;
 use driver_clock_bcm2837::impls::system_clock::SysClockTrait;
 use driver_gpio_bcm2837::gpio_types::{GPIOIn, GPIOOut};
 use driver_gpio_bcm2837::impls::gpio_in::InputPin;
 use driver_gpio_bcm2837::impls::gpio_out::{OutputPin, StatefulOutputPin};
 use driver_uart_bcm2837_pl011::impls::uart::{SerialInput, UART};
+use spin::Mutex;
 
-struct DeviceCriticalSection;
-critical_section::set_impl!(DeviceCriticalSection);
-
-unsafe impl critical_section::Impl for DeviceCriticalSection {
-    unsafe fn acquire() -> RawRestoreState {
-        let daif: u64;
-        unsafe {
-            core::arch::asm!(
-                "mrs {}, daif",
-                "msr daifset, #3",
-                out(reg) daif,
-                options(nomem, nostack)
-            )
-        }
-        daif as RawRestoreState
-    }
-
-    unsafe fn release(restore_state: RawRestoreState) {
-        unsafe {
-            core::arch::asm!(
-            "msr daif, {}",
-            in(reg) restore_state,
-            options(nomem, nostack)
-            );
-        }
-    }
-}
-
-pub static DEVICE: Mutex<Cell<Option<Device>>> = Mutex::new(Cell::new(None));
+pub static DEVICE: Mutex<Option<Device>> = Mutex::new(None);
 
 #[derive(Clone, Copy)]
 pub enum GPIO {
@@ -69,9 +39,8 @@ impl Default for Device {
 
 pub fn init_global_device() {
     let device = Device::new();
-    critical_section::with(|cs| {
-        DEVICE.borrow(cs).set(Some(device));
-    })
+    let mut mutx = DEVICE.lock();
+    *mutx = Some(device);
 }
 
 impl Device {

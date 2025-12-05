@@ -10,4 +10,5 @@ workspace = true
 uart = { path = "../drivers/uart/bcm2837_pl011", package = "driver_uart_bcm2837_pl011"}
 device = { path = "../devices/rpi_3b_plus", package = "device_rpi_3b_plus"}
 critical-section = { version = "1.2.0", features = ["restore-state-u64"] }
-
+spin = { version = "0.10.0", features = ["mutex"] }
+mem = { path = "../mem" }

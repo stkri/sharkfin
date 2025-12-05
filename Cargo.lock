@@ -16,6 +16,7 @@ dependencies = [
  "driver_clock_bcm2837",
  "driver_gpio_bcm2837",
  "driver_uart_bcm2837_pl011",
+ "spin",
 ]
 
 [[package]]
@@ -55,8 +56,26 @@ name = "kernel_utils"
 version = "0.1.0"
 
 [[package]]
+name = "lock_api"
+version = "0.4.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "224399e74b87b5f3557511d98dff8b14089b3dadafcab6bb93eab67d3aace965"
+dependencies = [
+ "scopeguard",
+]
+
+[[package]]
 name = "mem"
 version = "0.1.0"
+dependencies = [
+ "spin",
+]
+
+[[package]]
+name = "scopeguard"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
 
 [[package]]
 name = "sharkfin_kernel"
@@ -65,4 +84,15 @@ dependencies = [
  "critical-section",
  "device_rpi_3b_plus",
  "driver_uart_bcm2837_pl011",
+ "mem",
+ "spin",
+]
+
+[[package]]
+name = "spin"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d5fe4ccb98d9c292d56fec89a5e07da7fc4cf0dc11e156b41793132775d3e591"
+dependencies = [
+ "lock_api",
 ]

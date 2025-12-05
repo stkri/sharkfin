@@ -9,6 +9,9 @@ use core::fmt::Write;
 use core::panic::PanicInfo;
 use device::DEVICE;
 use device::init_global_device;
+use mem::init_allocator;
+
+extern crate alloc;
 
 #[cfg(target_arch = "aarch64")]
 global_asm!(include_str!("asm/aarch64/boot.aarch64.s"));
@@ -20,10 +23,11 @@ global_asm!(include_str!("asm/aarch64/vector_table.aarch64.s"));
 /// **Do not edit unless you know what you are doing.**
 #[unsafe(no_mangle)]
 pub extern "C" fn kernel_main() -> ! {
-     setup_page_tables();
+    setup_page_tables();
+    init_allocator();
     init_global_device();
 
-    let mut d = critical_section::with(|cs| DEVICE.borrow(cs).get().unwrap());
+    let mut d = (*DEVICE.lock()).unwrap();
 
     d.run_dsh();
     loop {
@@ -33,7 +37,7 @@ pub extern "C" fn kernel_main() -> ! {
 /// Kernel panic handler.\
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
-    if let Some(mut device) = critical_section::with(|cs| DEVICE.borrow(cs).get()) {
+    if let Some(mut device) = *DEVICE.lock() {
         let uart = &mut device.uart;
         writeln!(uart).unwrap();
         writeln!(uart, "[ !!!!!! ]\tKERNEL PANIC").ok();
@@ -81,16 +85,9 @@ fn setup_page_tables() {
         }
     }
 
-
     const MAIR_VALUE: u64 = (0xFF << 0) | (0x00 << 8);
 
-    const TCR_VALUE: u64 =
-        (16 << 0) |
-        (0b01 << 8) |
-        (0b01 << 10) |
-        (0b11 << 12) |
-        (0b010 << 32);
-
+    const TCR_VALUE: u64 = (16 << 0) | (0b01 << 8) | (0b01 << 10) | (0b11 << 12) | (0b010 << 32);
 
     unsafe {
         asm!(
@@ -127,9 +124,9 @@ fn setup_page_tables() {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn sync_handler() {
-    let esr: u64;  // Exception Syndrome Register
-    let elr: u64;  // Exception Link Register (where it crashed)
-    let far: u64;  // Fault Address Register
+    let esr: u64; // Exception Syndrome Register
+    let elr: u64; // Exception Link Register (where it crashed)
+    let far: u64; // Fault Address Register
 
     unsafe {
         core::arch::asm!("mrs {}, esr_el1", out(reg) esr);
@@ -137,7 +134,7 @@ pub extern "C" fn sync_handler() {
         core::arch::asm!("mrs {}, far_el1", out(reg) far);
     }
 
-    if let Some(mut device) = critical_section::with(|cs| DEVICE.borrow(cs).get()) {
+    if let Some(mut device) = *DEVICE.lock() {
         let uart = &mut device.uart;
         writeln!(uart, "\nSYNC EXCEPTION:").ok();
         writeln!(uart, "ESR_EL1: 0x{:016x}", esr).ok();

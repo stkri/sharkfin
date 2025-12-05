@@ -11,3 +11,4 @@ driver_uart_bcm2837_pl011 = { path = "../../drivers/uart/bcm2837_pl011"}
 driver_gpio_bcm2837 = { path = "../../drivers/gpio/bcm2837"}
 driver_clock_bcm2837 = { path = "../../drivers/clock/bcm2837"}
 critical-section = { version = "1.2.0", features = ["restore-state-u64"] }
+spin = { version = "0.10.0", features = ["mutex"] }
