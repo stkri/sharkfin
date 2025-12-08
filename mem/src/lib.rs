@@ -1,6 +1,6 @@
 #![no_std]
 
-use core::alloc::GlobalAlloc;
+use core::alloc::{self, GlobalAlloc, Layout};
 use spin::Mutex;
 
 unsafe extern "C" {
@@ -8,15 +8,27 @@ unsafe extern "C" {
 }
 
 #[global_allocator]
-pub static ALLOCATOR: BuddyAllocator = BuddyAllocator {
+pub static KALLLOCATOR: KAllocator = KAllocator;
+
+pub static BALLOCATOR: BuddyAllocator = BuddyAllocator {
     inner: Mutex::new(BuddyAllocatorInner {
         free_lists: [FreeList { head: None }; MAX_ORDER + 1],
     }),
 };
 
+pub static SALLOCATOR: SlabAllocator = SlabAllocator {
+    inner: Mutex::new(SlabAllocatorInner {
+        free_lists: [FreeList { head: None }; 9],
+    }),
+};
+
 pub fn init_allocator() {
-    let mut inner = ALLOCATOR.inner.lock();
-    *inner = BuddyAllocatorInner::new();
+    {
+        let mut binner = BALLOCATOR.inner.lock();
+        *binner = BuddyAllocatorInner::new();
+    } // DO NOT REMOVE THESE: PREVENTS A DEADLOCK
+    let mut sinner = SALLOCATOR.inner.lock();
+    *sinner = unsafe { SlabAllocatorInner::new() };
 }
 
 const HEAP_END: usize = 0x3F000000;
@@ -33,7 +45,7 @@ pub struct BuddyAllocator {
     inner: Mutex<BuddyAllocatorInner>,
 }
 
-pub struct BuddyAllocatorInner {
+struct BuddyAllocatorInner {
     free_lists: [FreeList; MAX_ORDER + 1],
 }
 
@@ -183,6 +195,119 @@ unsafe impl GlobalAlloc for BuddyAllocator {
             } else {
                 allocator.add_to_free_list(current_addr, order);
                 break;
+            }
+        }
+    }
+}
+
+// 8 16 32 64 128 256 512 1024 2048
+
+pub struct SlabAllocator {
+    inner: Mutex<SlabAllocatorInner>,
+}
+
+struct SlabAllocatorInner {
+    free_lists: [FreeList; 9],
+}
+
+impl SlabAllocatorInner {
+    pub unsafe fn new() -> Self {
+        let mut free_lists = [FreeList { head: None }; 9];
+        for i in 3..=11 {
+            let first_ptr = unsafe {
+                BALLOCATOR.alloc(Layout::from_size_align_unchecked(4096, 4096)) as *mut FreeBlock
+            };
+            let ptr_size = 1 << i;
+            unsafe { *first_ptr = FreeBlock { next: None } };
+            for j in 1..(4096 / ptr_size) {
+                let ptr = (first_ptr as usize + j * ptr_size) as *mut FreeBlock;
+                let next_ptr = (first_ptr as usize + (j - 1) * ptr_size) as *mut FreeBlock;
+                unsafe {
+                    *ptr = FreeBlock {
+                        next: Some(next_ptr),
+                    }
+                };
+            }
+            free_lists[i - 3] = FreeList {
+                head: Some((first_ptr as usize + 4096 - ptr_size) as *mut FreeBlock),
+            }
+        }
+
+        Self { free_lists }
+    }
+}
+
+impl SlabAllocator {
+    pub fn new() -> Self {
+        Self {
+            inner: Mutex::new(unsafe { SlabAllocatorInner::new() }),
+        }
+    }
+}
+
+unsafe impl GlobalAlloc for SlabAllocator {
+    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        if layout.size() > 2048 {
+            return core::ptr::null_mut();
+        }
+        let size = layout.size().max(8).next_power_of_two();
+        let size_slab = (size.trailing_zeros() - 3) as usize;
+        let mut allocator = self.inner.lock();
+        if allocator.free_lists[size_slab].head == None {
+            let first_ptr = unsafe {
+                BALLOCATOR.alloc(Layout::from_size_align_unchecked(4096, 4096)) as *mut FreeBlock
+            };
+            unsafe { *first_ptr = FreeBlock { next: None } };
+            for j in 1..(4096 / size) {
+                let ptr = (first_ptr as usize + j * size) as *mut FreeBlock;
+                let next_ptr = (first_ptr as usize + (j - 1) * size) as *mut FreeBlock;
+                unsafe {
+                    *ptr = FreeBlock {
+                        next: Some(next_ptr),
+                    }
+                };
+            }
+            allocator.free_lists[size_slab] = FreeList {
+                head: Some((first_ptr as usize + 4096 - size) as *mut FreeBlock),
+            };
+        }
+        match allocator.free_lists[size_slab].head {
+            None => return core::ptr::null_mut(),
+            Some(p) => {
+                allocator.free_lists[size_slab].head = unsafe { (*p).next };
+                return p as *mut u8;
+            }
+        }
+    }
+
+    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+        let size = layout.size().max(8).min(2048).next_power_of_two();
+        let size_slab = (size.trailing_zeros() - 3) as usize;
+        let mut allocator = self.inner.lock();
+        let ptr = ptr as *mut FreeBlock;
+        unsafe { (*ptr).next = allocator.free_lists[size_slab].head }
+        allocator.free_lists[size_slab].head = Some(ptr);
+    }
+}
+
+pub struct KAllocator;
+
+unsafe impl GlobalAlloc for KAllocator {
+    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        unsafe {
+            if layout.size() > 2048 {
+                BALLOCATOR.alloc(layout)
+            } else {
+                SALLOCATOR.alloc(layout)
+            }
+        }
+    }
+    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+        unsafe {
+            if layout.size() > 2048 {
+                BALLOCATOR.dealloc(ptr, layout);
+            } else {
+                SALLOCATOR.dealloc(ptr, layout);
             }
         }
     }
